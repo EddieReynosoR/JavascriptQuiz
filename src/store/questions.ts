@@ -1,5 +1,9 @@
 import {create} from 'zustand'
+
+// Hacer algo cada vez que haya un cambio en el estado
+import { persist } from 'zustand/middleware';
 import { Question } from './../types/types.d';
+import { getAllQuestions } from '../services/questions';
 
 // Describir como se compondrá el estado
 interface State {
@@ -9,19 +13,32 @@ interface State {
     selectAnswer: (questionId: number, answerIndex: number) => void
     goNextQuestion: () => void
     goPrevQuestion: () => void
+    reset: () => void
 }
 
-export const useQuestionsStore = create<State>((set, get) => {
+// CREAR MIDDLEWARE EN ZUSTAND
+
+// const logger = (config) => (set,get,api) => {
+//     return config(
+//         (...args) => {
+//             console.log('applying', args)
+//             set(...args) // original
+//             console.log('new state'. get())
+//         },
+//         get,
+//         api
+//     )
+// }
+
+export const useQuestionsStore = create<State>()(persist((set, get) => {
     // get (leer estado) - set (actualizar estado)
     return {
         questions: [],
         currentQuestion: 0, // posicion del arrray de Questions
 
         fetchQuestions: async (limit: number) => {
-            const res = await fetch('http://localhost:5173/data.json')
-            const json = await res.json()
+            const questions = await getAllQuestions(limit)
 
-            const questions = json.sort(()=> Math.random() - 0.5).slice(0, limit)
             set({questions})
         },
 
@@ -69,6 +86,13 @@ export const useQuestionsStore = create<State>((set, get) => {
             if(prevQuestion >= 0) {
                 set({currentQuestion: prevQuestion})
             }
+        },
+        reset: () => {
+            set({currentQuestion: 0, questions: []})
         }
     }
-})
+}, {
+    name: 'questions' // Nombre de lo que queremos persistir
+})) 
+
+// Se tipa como funcion, porque persist a su vez devuelve una funcion.
